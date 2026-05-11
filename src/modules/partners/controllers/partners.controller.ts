@@ -7,9 +7,13 @@ import {
   Param,
   Body,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { PartnersService } from '../services/partners.service';
 import { CreatePartnerDto } from '../dto/create-partner.dto';
 import { UpdatePartnerDto } from '../dto/update-partner.dto';
@@ -47,6 +51,19 @@ export class PartnersController {
     @Query('contentType') contentType?: string,
   ) {
     return this.fileUploadService.generateUploadUrl('partners', filename, contentType);
+  }
+
+  @Post('admin/partners/upload-photo')
+  @ApiBearerAuth('JWT')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload partner logo via server' })
+  async uploadPhoto(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file provided');
+    const url = await this.fileUploadService.uploadFile(file, 'partners');
+    return { url };
   }
 
   @Get('admin/partners')

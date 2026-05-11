@@ -7,10 +7,14 @@ import {
   Param,
   Body,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   Query,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { BoardMembersService } from '../services/board-members.service';
 import { CreateBoardMemberDto } from '../dto/create-board-member.dto';
 import { UpdateBoardMemberDto } from '../dto/update-board-member.dto';
@@ -49,6 +53,19 @@ export class BoardMembersController {
     @Query('contentType') contentType?: string,
   ) {
     return this.fileUploadService.generateUploadUrl('board-members', filename, contentType);
+  }
+
+  @Post('admin/board-members/upload-photo')
+  @ApiBearerAuth('JWT')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload board member photo via server' })
+  async uploadPhoto(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file provided');
+    const url = await this.fileUploadService.uploadFile(file, 'board-members');
+    return { url };
   }
 
   @Get('admin/board-members')

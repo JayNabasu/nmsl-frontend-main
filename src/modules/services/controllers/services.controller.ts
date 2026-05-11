@@ -7,9 +7,13 @@ import {
   Param,
   Body,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ServicesService } from '../services/services.service';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
@@ -43,6 +47,21 @@ export class ServicesController {
   ) {
     const folder = type === 'banner' ? 'services/banners' : 'services/icons';
     return this.fileUploadService.generateUploadUrl(folder, filename, contentType);
+  }
+
+  @Post('upload-photo')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload service image via server' })
+  @ApiQuery({ name: 'type', required: true, enum: ['banner', 'icon'], example: 'banner' })
+  async uploadPhoto(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('type') type: 'banner' | 'icon',
+  ) {
+    if (!file) throw new BadRequestException('No file provided');
+    const folder = type === 'banner' ? 'services/banners' : 'services/icons';
+    const url = await this.fileUploadService.uploadFile(file, folder);
+    return { url };
   }
 
   @Get()
