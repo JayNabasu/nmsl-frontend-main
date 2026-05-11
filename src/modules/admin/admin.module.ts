@@ -1,0 +1,30 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from '../users/entities/user.entity';
+import { Doctor } from '../doctors/entities/doctor.entity';
+import { DoctorAvailability } from '../doctors/entities/doctor-availability.entity';
+import { Appointment } from '../appointments/entities/appointment.entity';
+import { AdminController } from './controllers/admin.controller';
+import { AdminService } from './services/admin.service';
+import { UsersModule } from '../users/users.module';
+import { DoctorsModule } from '../doctors/doctors.module';
+import { AppointmentsModule } from '../appointments/appointments.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { AuditModule } from '../audit/audit.module';
+import { FileUploadModule } from '../file-upload/file-upload.module';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([User, Doctor, DoctorAvailability, Appointment]),
+    UsersModule,
+    DoctorsModule,
+    AppointmentsModule,
+    NotificationsModule,
+    AuditModule,
+    FileUploadModule,
+  ],
+  controllers: [AdminController],
+  providers: [AdminService],
+  exports: [AdminService],
+})
+export class AdminModule {}

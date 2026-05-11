@@ -1,0 +1,314 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  HttpException,
+  Req,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import { AppointmentsService } from '../services/appointments.service';
+import { AppointmentLockService } from '../services/appointment-lock.service';
+import { AppointmentAvailabilityService } from '../services/appointment-availability.service';
+import { CreateAppointmentDto } from '../dto/create-appointment.dto';
+import { UpdateAppointmentDto } from '../dto/update-appointment.dto';
+import { RescheduleAppointmentDto } from '../dto/reschedule-appointment.dto';
+import { LockAppointmentDto } from '../dto/lock-appointment.dto';
+import { UnlockAppointmentDto } from '../dto/unlock-appointment.dto';
+import { GetAvailableSlotsDto } from '../dto/get-available-slots.dto';
+import { CheckDateAvailabilityDto } from '../dto/check-date-availability.dto';
+import { GetAvailableDatesDto } from '../dto/get-available-dates.dto';
+import { AppointmentStatus } from '../entities/appointment.entity';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { User, UserRole } from '../../users/entities/user.entity';
+import { Request } from 'express';
+
+@ApiTags('Appointments')
+@Controller('appointments')
+export class AppointmentsController {
+  constructor(
+    private readonly appointmentsService: AppointmentsService,
+    private readonly appointmentLockService: AppointmentLockService,
+    private readonly availabilityService: AppointmentAvailabilityService,
+  ) {}
+
+  // ============================================
+  // AVAILABILITY ENDPOINTS (Public)
+  // ============================================
+
+  @Get('availability/slots')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get available time slots for a specific date',
+    description:
+      'Returns available time slots for appointment booking based on date, location, and specialty. Returns empty array if no slots available.',
+  })
+  async getAvailableSlots(@Query() query: GetAvailableSlotsDto) {
+    const slots = await this.availabilityService.getAvailableSlots(
+      query.date,
+      query.location,
+      query.specialty,
+    );
+
+    return {
+      success: true,
+      data: slots,
+      message: 'Available slots retrieved successfully',
+    };
+  }
+
+  @Get('availability/date')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Check if a specific date has available slots',
+    description:
+      'Quick boolean check for date availability with slot count.',
+  })
+  async checkDateAvailability(@Query() query: CheckDateAvailabilityDto) {
+    const result = await this.availabilityService.checkDateAvailability(
+      query.date,
+      query.location,
+      query.specialty,
+    );
+
+    return {
+      success: true,
+      data: result,
+      message: 'Date availability checked',
+    };
+  }
+
+  @Get('availability/dates')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get available dates within a date range',
+    description:
+      'Returns list of dates that have available slots. Useful for calendar views. Limited to 90-day ranges.',
+  })
+  async getAvailableDates(@Query() query: GetAvailableDatesDto) {
+    const dates = await this.availabilityService.getAvailableDates(
+      query.startDate,
+      query.endDate,
+      query.location,
+      query.specialty,
+    );
+
+    return {
+      success: true,
+      data: dates,
+      message: 'Available dates retrieved successfully',
+    };
+  }
+
+  // ============================================
+  // APPOINTMENT MANAGEMENT
+  // ============================================
+
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get appointments (filtered by role)' })
+  findAll(
+    @CurrentUser() user: User,
+    @Query('status') status?: AppointmentStatus,
+    @Query('date') date?: string,
+    @Query('doctorId') doctorId?: string,
+    @Query('patientId') patientId?: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+  ) {
+    return this.appointmentsService.findAll(user, { status, date, doctorId, patientId, page, limit });
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get appointment by ID' })
+  findOne(@Param('id') id: string) {
+    return this.appointmentsService.findById(id);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Book a new appointment (guest or authenticated)' })
+  create(@Body() dto: CreateAppointmentDto, @Req() req: Request) {
+    // Extract user from request if authenticated (optional)
+    const user = req['user'] as User | undefined;
+    return this.appointmentsService.create(dto, user);
+  }
+
+  @Put(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update appointment status' })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateAppointmentDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.appointmentsService.update(id, dto, user);
+  }
+
+  @Patch(':id/reschedule')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reschedule appointment' })
+  reschedule(
+    @Param('id') id: string,
+    @Body() dto: RescheduleAppointmentDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.appointmentsService.reschedule(id, dto, user);
+  }
+
+  @Patch(':id/confirm')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.DOCTOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Confirm appointment (doctor/admin)',
+    description: 'DEPRECATED: Use /admin/appointments/:id/status instead. This endpoint does not create audit logs.'
+  })
+  async confirm(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.appointmentsService.update(
+      id,
+      { status: AppointmentStatus.CONFIRMED },
+      user,
+    );
+  }
+
+  @Patch(':id/cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cancel appointment' })
+  async cancel(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.appointmentsService.update(
+      id,
+      { status: AppointmentStatus.CANCELLED },
+      user,
+    );
+  }
+
+  @Patch(':id/complete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.DOCTOR, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark appointment as completed (doctor/admin)' })
+  async complete(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.appointmentsService.update(
+      id,
+      { status: AppointmentStatus.COMPLETED },
+      user,
+    );
+  }
+
+  @Patch(':id/lock')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN, UserRole.APPOINTMENT_OFFICER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Lock appointment for processing',
+    description:
+      'Lock an appointment to prevent other officers from working on it. Admins can override existing locks.',
+  })
+  async lockAppointment(
+    @Param('id') id: string,
+    @Body() dto: LockAppointmentDto,
+    @CurrentUser() user: User,
+  ) {
+    const isAdmin = user.role === UserRole.ADMIN;
+    const lockInfo = await this.appointmentLockService.acquireLock(
+      id,
+      dto.officerEmail || user.email,
+      dto.isAdmin || isAdmin,
+      user.name, // Pass admin name for audit logging
+    );
+
+    // Update appointment entity with lock info
+    await this.appointmentsService.updateLockFields(
+      id,
+      lockInfo.lockedBy,
+      lockInfo.lockedAt,
+    );
+
+    const appointment = await this.appointmentsService.findById(id);
+    return {
+      ...appointment,
+      lockInfo: {
+        ...lockInfo,
+        remainingSeconds: await this.appointmentLockService.getRemainingTime(id),
+      },
+    };
+  }
+
+  @Patch(':id/unlock')
+  @Roles(UserRole.ADMIN, UserRole.APPOINTMENT_OFFICER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Unlock appointment',
+    description:
+      'Release the lock on an appointment. Officers can only unlock their own appointments unless they are admins.',
+  })
+  async unlockAppointment(
+    @Param('id') id: string,
+    @Body() dto: UnlockAppointmentDto,
+    @CurrentUser() user: User,
+  ) {
+    const isAdmin = user.role === UserRole.ADMIN;
+    const officerEmail = dto.officerEmail || user.email;
+
+    // Verify permission to unlock
+    const canUnlock = await this.appointmentLockService.canUnlock(
+      id,
+      officerEmail,
+      isAdmin,
+    );
+
+    if (!canUnlock) {
+      throw new HttpException(
+        'You do not have permission to unlock this appointment',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    await this.appointmentLockService.releaseLock(id);
+
+    // Clear lock fields in appointment entity
+    await this.appointmentsService.updateLockFields(id, null, null);
+
+    return {
+      success: true,
+      message: 'Appointment unlocked successfully',
+    };
+  }
+
+  @Get(':id/lock-status')
+  @Roles(UserRole.ADMIN, UserRole.APPOINTMENT_OFFICER)
+  @ApiOperation({
+    summary: 'Check lock status of an appointment',
+    description: 'Returns current lock information including remaining time.',
+  })
+  async getLockStatus(@Param('id') id: string) {
+    const lockInfo = await this.appointmentLockService.getLock(id);
+    const remainingSeconds = await this.appointmentLockService.getRemainingTime(id);
+
+    return {
+      isLocked: lockInfo !== null,
+      lockInfo,
+      remainingSeconds,
+    };
+  }
+}
