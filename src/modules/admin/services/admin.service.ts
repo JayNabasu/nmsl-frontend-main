@@ -19,6 +19,7 @@ import { DoctorsService } from '../../doctors/services/doctors.service';
 import { EmailService } from '../../notifications/services/email.service';
 import { AuditService } from '../../audit/audit.service';
 import { AuditAction } from '../../audit/entities/audit-log.entity';
+import { FileUploadService } from '../../file-upload/services/file-upload.service';
 
 @Injectable()
 export class AdminService {
@@ -37,6 +38,7 @@ export class AdminService {
     private readonly doctorsService: DoctorsService,
     private readonly emailService: EmailService,
     private readonly auditService: AuditService,
+    private readonly fileUploadService: FileUploadService,
   ) {}
 
   // ─── KPIs ────────────────────────────────────────────────────────────────
@@ -266,6 +268,11 @@ export class AdminService {
       }
     }
 
+    // Delete old avatar from blob storage if a new one is provided
+    if (dto.avatar && dto.avatar !== doctor.avatar && doctor.avatar) {
+      await this.fileUploadService.deleteBlob(doctor.avatar);
+    }
+
     // Update doctor fields
     Object.assign(doctor, dto);
     const updatedDoctor = await this.doctorsRepository.save(doctor);
@@ -277,6 +284,9 @@ export class AdminService {
   async deleteDoctor(id: string) {
     const doctor = await this.doctorsRepository.findOne({ where: { id } });
     if (!doctor) throw new NotFoundException('Doctor not found');
+
+    // Delete avatar from blob storage
+    if (doctor.avatar) await this.fileUploadService.deleteBlob(doctor.avatar);
 
     // Delete doctor's availability schedule first (cascade should handle this, but explicit for safety)
     await this.doctorAvailabilityRepository.delete({ doctorId: id });

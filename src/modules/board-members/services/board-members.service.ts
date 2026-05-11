@@ -92,13 +92,20 @@ export class BoardMembersService {
 
       if (dto.image && this.isBase64Image(dto.image)) {
         this.logger.log('📦 Updating image (base64), uploading to Azure...');
+        const oldImageUrl = member.image;
         const identifier = `${member.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${uuidv4().substring(0, 8)}`;
         imageUrl = await this.fileUploadService.uploadBase64Image(
           dto.image,
           'board-members',
           `photo-${identifier}`
         );
+        if (oldImageUrl) await this.fileUploadService.deleteBlob(oldImageUrl);
         this.logger.log(`✅ Image updated: ${imageUrl}`);
+      }
+
+      // Delete old blob if replaced via direct URL (SAS upload) rather than base64
+      if (imageUrl && !this.isBase64Image(dto.image) && imageUrl !== member.image && member.image) {
+        await this.fileUploadService.deleteBlob(member.image);
       }
 
       Object.assign(member, {
@@ -117,6 +124,7 @@ export class BoardMembersService {
 
   async remove(id: string): Promise<{ success: boolean }> {
     const member = await this.findOne(id);
+    if (member.image) await this.fileUploadService.deleteBlob(member.image);
     await this.boardMembersRepository.remove(member);
     return { success: true };
   }

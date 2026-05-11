@@ -92,13 +92,20 @@ export class PartnersService {
 
       if (dto.logo && this.isBase64Image(dto.logo)) {
         this.logger.log('📦 Updating logo (base64), uploading to Azure...');
+        const oldLogoUrl = partner.logo;
         const identifier = `${partner.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${uuidv4().substring(0, 8)}`;
         logoUrl = await this.fileUploadService.uploadBase64Image(
           dto.logo,
           'partners',
           `logo-${identifier}`
         );
+        if (oldLogoUrl) await this.fileUploadService.deleteBlob(oldLogoUrl);
         this.logger.log(`✅ Logo updated: ${logoUrl}`);
+      }
+
+      // Delete old blob if replaced via direct URL (SAS upload) rather than base64
+      if (logoUrl && !this.isBase64Image(dto.logo) && logoUrl !== partner.logo && partner.logo) {
+        await this.fileUploadService.deleteBlob(partner.logo);
       }
 
       Object.assign(partner, {
@@ -117,6 +124,7 @@ export class PartnersService {
 
   async remove(id: string): Promise<{ success: boolean }> {
     const partner = await this.findOne(id);
+    if (partner.logo) await this.fileUploadService.deleteBlob(partner.logo);
     await this.partnersRepository.remove(partner);
     return { success: true };
   }

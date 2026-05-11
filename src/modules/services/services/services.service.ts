@@ -112,25 +112,37 @@ export class ServicesService {
       // Upload new banner if it's base64
       if (dto.bannerImageUrl && this.isBase64Image(dto.bannerImageUrl)) {
         this.logger.log('📦 Updating banner image (base64), uploading to Azure...');
+        const oldBannerUrl = service.bannerImageUrl;
         const identifier = `${service.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${uuidv4().substring(0, 8)}`;
         bannerUrl = await this.fileUploadService.uploadBase64Image(
           dto.bannerImageUrl,
           'services/banners',
           `banner-${identifier}`
         );
+        if (oldBannerUrl) await this.fileUploadService.deleteBlob(oldBannerUrl);
         this.logger.log(`✅ Banner updated: ${bannerUrl}`);
       }
 
       // Upload new icon if it's base64
       if (dto.iconImageUrl && this.isBase64Image(dto.iconImageUrl)) {
         this.logger.log('📦 Updating icon image (base64), uploading to Azure...');
+        const oldIconUrl = service.iconImageUrl;
         const identifier = `${service.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${uuidv4().substring(0, 8)}`;
         iconUrl = await this.fileUploadService.uploadBase64Image(
           dto.iconImageUrl,
           'services/icons',
           `icon-${identifier}`
         );
+        if (oldIconUrl) await this.fileUploadService.deleteBlob(oldIconUrl);
         this.logger.log(`✅ Icon updated: ${iconUrl}`);
+      }
+
+      // Delete old blobs if replaced via direct URL (SAS upload) rather than base64
+      if (bannerUrl && !this.isBase64Image(dto.bannerImageUrl) && bannerUrl !== service.bannerImageUrl && service.bannerImageUrl) {
+        await this.fileUploadService.deleteBlob(service.bannerImageUrl);
+      }
+      if (iconUrl && !this.isBase64Image(dto.iconImageUrl) && iconUrl !== service.iconImageUrl && service.iconImageUrl) {
+        await this.fileUploadService.deleteBlob(service.iconImageUrl);
       }
 
       // Update with new URLs
@@ -152,6 +164,8 @@ export class ServicesService {
   async remove(id: string): Promise<{ success: boolean }> {
     this.logger.log(`Deleting service: ${id}`);
     const service = await this.findOne(id);
+    if (service.bannerImageUrl) await this.fileUploadService.deleteBlob(service.bannerImageUrl);
+    if (service.iconImageUrl) await this.fileUploadService.deleteBlob(service.iconImageUrl);
     await this.servicesRepository.remove(service);
     this.logger.log(`✅ Service deleted: ${id}`);
     return { success: true };

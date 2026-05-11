@@ -8,17 +8,22 @@ import {
   Body,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   HttpCode,
   HttpStatus,
   HttpException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminService } from '../services/admin.service';
 import { AppointmentsService } from '../../appointments/services/appointments.service';
 import { AppointmentLockService } from '../../appointments/services/appointment-lock.service';
@@ -94,6 +99,19 @@ export class AdminController {
     @Query('contentType') contentType?: string,
   ) {
     return this.fileUploadService.generateUploadUrl('doctors/avatars', filename, contentType);
+  }
+
+  @Post('doctors/upload-photo')
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload doctor profile photo via server' })
+  async uploadDoctorPhoto(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+    const url = await this.fileUploadService.uploadFile(file, 'doctors/avatars');
+    return { url };
   }
 
   @Get('doctors/:id/availability')

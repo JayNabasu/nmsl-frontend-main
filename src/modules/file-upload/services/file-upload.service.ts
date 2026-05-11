@@ -7,7 +7,7 @@ import {
   StorageSharedKeyCredential,
 } from '@azure/storage-blob';
 
-const ALLOWED_MIME_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+const ALLOWED_MIME_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 @Injectable()
@@ -163,6 +163,36 @@ export class FileUploadService {
     } catch (error) {
       this.logger.error(`Failed to upload base64 image: ${error.message}`, error.stack);
       throw new BadRequestException(`Image upload failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete a blob from Azure Blob Storage by its URL
+   * Silently fails if the blob doesn't exist or Azure is not configured
+   */
+  async deleteBlob(blobUrl: string): Promise<void> {
+    if (!blobUrl || !this.enabled) return;
+
+    try {
+      const urlObj = new URL(blobUrl);
+      const blobName = urlObj.pathname.replace(`/${this.container}/`, '');
+
+      if (!blobName || blobName === urlObj.pathname) {
+        this.logger.warn(`Could not extract blob name from URL: ${blobUrl}`);
+        return;
+      }
+
+      const containerClient = this.blobServiceClient.getContainerClient(this.container);
+      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+      const response = await blockBlobClient.deleteIfExists();
+
+      if (response.succeeded) {
+        this.logger.log(`🗑️ Deleted blob: ${blobName}`);
+      } else {
+        this.logger.warn(`Blob not found (already deleted?): ${blobName}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to delete blob: ${error.message}`);
     }
   }
 
