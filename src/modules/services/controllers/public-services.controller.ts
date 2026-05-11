@@ -10,7 +10,13 @@ export class PublicServicesController {
   @Get()
   @ApiOperation({ summary: 'Get all active services (public endpoint)' })
   async findAllActive() {
-    return this.servicesService.findAll();
+    return this.servicesService.findAllActive();
+  }
+
+  @Get('homepage')
+  @ApiOperation({ summary: 'Get services featured on the homepage' })
+  async findHomepageServices() {
+    return this.servicesService.findHomepageServices();
   }
 
   @Get('other-services')

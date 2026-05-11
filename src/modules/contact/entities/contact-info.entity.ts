@@ -10,6 +10,9 @@ export class ContactInfo {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ unique: true })
+  location: string;
+
   @Column({ nullable: true })
   phone: string;
 

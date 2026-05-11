@@ -24,6 +24,20 @@ export class ServicesService {
     return this.servicesRepository.find({ order: { createdAt: 'DESC' } });
   }
 
+  findAllActive(): Promise<Service[]> {
+    return this.servicesRepository.find({
+      where: { isActive: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  findHomepageServices(): Promise<Service[]> {
+    return this.servicesRepository.find({
+      where: { isActive: true, showOnHomepage: true },
+      order: { homepageOrder: 'ASC' },
+    });
+  }
+
   async findOne(id: string): Promise<Service> {
     const service = await this.servicesRepository.findOne({ where: { id } });
     if (!service) throw new NotFoundException('Service not found');

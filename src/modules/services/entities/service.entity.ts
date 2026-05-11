@@ -71,6 +71,12 @@ export class Service {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ default: false })
+  showOnHomepage: boolean;
+
+  @Column({ default: 0 })
+  homepageOrder: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -11,16 +11,28 @@ export class ContactService {
     private readonly contactRepository: Repository<ContactInfo>,
   ) {}
 
-  async get(): Promise<ContactInfo> {
-    const contacts = await this.contactRepository.find({ take: 1 });
-    if (contacts.length > 0) return contacts[0];
-    const contact = this.contactRepository.create({});
-    return this.contactRepository.save(contact);
+  async getAll(): Promise<ContactInfo[]> {
+    return this.contactRepository.find({ order: { location: 'ASC' } });
+  }
+
+  async getByLocation(location: string): Promise<ContactInfo> {
+    let contact = await this.contactRepository.findOne({ where: { location } });
+    if (!contact) {
+      contact = this.contactRepository.create({ location });
+      contact = await this.contactRepository.save(contact);
+    }
+    return contact;
   }
 
   async update(dto: UpdateContactDto): Promise<ContactInfo> {
-    const contact = await this.get();
-    Object.assign(contact, dto);
+    let contact = await this.contactRepository.findOne({
+      where: { location: dto.location },
+    });
+    if (!contact) {
+      contact = this.contactRepository.create({ location: dto.location });
+    }
+    const { location, ...fields } = dto;
+    Object.assign(contact, fields);
     return this.contactRepository.save(contact);
   }
 }

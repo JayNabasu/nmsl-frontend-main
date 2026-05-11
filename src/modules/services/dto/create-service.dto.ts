@@ -2,6 +2,7 @@ import {
   IsString,
   IsOptional,
   IsBoolean,
+  IsNumber,
   IsArray,
   ValidateNested,
   IsEnum,
@@ -68,4 +69,14 @@ export class CreateServiceDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Whether this service appears on the homepage' })
+  @IsOptional()
+  @IsBoolean()
+  showOnHomepage?: boolean;
+
+  @ApiPropertyOptional({ description: 'Display order on homepage (lower = first). Only used when showOnHomepage is true.' })
+  @IsOptional()
+  @IsNumber()
+  homepageOrder?: number;
 }

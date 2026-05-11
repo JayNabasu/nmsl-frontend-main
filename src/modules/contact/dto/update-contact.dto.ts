@@ -1,7 +1,11 @@
-import { IsString, IsOptional, IsEmail } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateContactDto {
+  @ApiProperty({ description: 'Location name (e.g. Abuja, Lagos)' })
+  @IsString()
+  location: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -9,13 +13,23 @@ export class UpdateContactDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
-  email?: string;
+  @IsString()
+  emailPrimary?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  address?: string;
+  emailSecondary?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  addressLine1?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  addressLine2?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -25,10 +39,15 @@ export class UpdateContactDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  state?: string;
+  country?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   officeHours?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  emergencyHours?: string;
 }

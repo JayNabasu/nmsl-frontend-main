@@ -250,6 +250,7 @@ export class DoctorsService {
         'doctor.phone',
         'doctor.qualifications',
         'doctor.avatar',
+        'doctor.bio',
       ]);
 
     if (filters?.location) {
