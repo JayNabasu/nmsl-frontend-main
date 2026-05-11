@@ -23,6 +23,7 @@ import { AdminService } from '../services/admin.service';
 import { AppointmentsService } from '../../appointments/services/appointments.service';
 import { AppointmentLockService } from '../../appointments/services/appointment-lock.service';
 import { CreateDoctorDto } from '../../doctors/dto/create-doctor.dto';
+import { UpdateDoctorDto } from '../../doctors/dto/update-doctor.dto';
 import { CreateAdminDto } from '../dto/create-admin.dto';
 import { ChangeAdminPasswordDto } from '../dto/change-admin-password.dto';
 import { UpdateUserEmailDto } from '../dto/update-user-email.dto';
@@ -118,6 +119,24 @@ export class AdminController {
   @ApiOperation({ summary: 'Toggle doctor active status' })
   toggleDoctorStatus(@Param('id') id: string) {
     return this.adminService.toggleDoctorStatus(id);
+  }
+
+  @Patch('doctors/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update doctor profile' })
+  updateDoctor(
+    @Param('id') id: string,
+    @Body() dto: UpdateDoctorDto,
+  ) {
+    return this.adminService.updateDoctor(id, dto);
+  }
+
+  @Delete('doctors/:id')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete doctor account' })
+  deleteDoctor(@Param('id') id: string) {
+    return this.adminService.deleteDoctor(id);
   }
 
   // ─── Admins ───────────────────────────────────────────────────────────────

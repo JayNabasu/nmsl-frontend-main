@@ -8,6 +8,7 @@ import { Doctor } from '../../doctors/entities/doctor.entity';
 import { DoctorAvailability } from '../../doctors/entities/doctor-availability.entity';
 import { Appointment, AppointmentStatus } from '../../appointments/entities/appointment.entity';
 import { CreateDoctorDto } from '../../doctors/dto/create-doctor.dto';
+import { UpdateDoctorDto } from '../../doctors/dto/update-doctor.dto';
 import { CreateAdminDto } from '../dto/create-admin.dto';
 import { ChangeAdminPasswordDto } from '../dto/change-admin-password.dto';
 import { UpdateUserEmailDto } from '../dto/update-user-email.dto';
@@ -216,6 +217,76 @@ export class AdminService {
       id: doctor.id,
       isActive: doctor.isActive,
       message: doctor.isActive ? 'Doctor activated successfully' : 'Doctor deactivated successfully',
+    };
+  }
+
+  async updateDoctor(id: string, dto: any): Promise<Doctor> {
+    const doctor = await this.doctorsRepository.findOne({ where: { id } });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+
+    // Check email uniqueness (excluding current doctor)
+    if (dto.email && dto.email !== doctor.email) {
+      const existingDoctor = await this.doctorsRepository.findOne({
+        where: { email: dto.email },
+      });
+      if (existingDoctor) {
+        throw new BadRequestException(
+          `A doctor with email ${dto.email} already exists. Please use a different email address.`
+        );
+      }
+
+      const existingUser = await this.usersRepository.findOne({
+        where: { email: dto.email },
+      });
+      if (existingUser) {
+        throw new BadRequestException(
+          `Email ${dto.email} is already in use by another user (${existingUser.role}). Please use a different email address.`
+        );
+      }
+    }
+
+    // Check phone uniqueness (excluding current doctor)
+    if (dto.phone && dto.phone !== doctor.phone) {
+      const existingDoctorPhone = await this.doctorsRepository.findOne({
+        where: { phone: dto.phone },
+      });
+      if (existingDoctorPhone) {
+        throw new BadRequestException(
+          `A doctor with phone number ${dto.phone} already exists. Please use a different phone number.`
+        );
+      }
+
+      const existingUserPhone = await this.usersRepository.findOne({
+        where: { phone: dto.phone },
+      });
+      if (existingUserPhone) {
+        throw new BadRequestException(
+          `Phone number ${dto.phone} is already in use by another user (${existingUserPhone.role}). Please use a different phone number.`
+        );
+      }
+    }
+
+    // Update doctor fields
+    Object.assign(doctor, dto);
+    const updatedDoctor = await this.doctorsRepository.save(doctor);
+
+    const { password, ...safe } = updatedDoctor as any;
+    return safe as Doctor;
+  }
+
+  async deleteDoctor(id: string) {
+    const doctor = await this.doctorsRepository.findOne({ where: { id } });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+
+    // Delete doctor's availability schedule first (cascade should handle this, but explicit for safety)
+    await this.doctorAvailabilityRepository.delete({ doctorId: id });
+
+    // Delete the doctor
+    await this.doctorsRepository.delete({ id });
+
+    return {
+      success: true,
+      message: 'Doctor removed successfully',
     };
   }
 
