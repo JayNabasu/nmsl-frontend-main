@@ -76,6 +76,8 @@ export class AppController {
             Testimonial,
           ],
           synchronize: config.get<string>('DATABASE_SYNC') === 'true',
+          migrationsRun: true,
+          migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
           logging: config.get<string>('NODE_ENV') !== 'production',
           ssl: config.get<string>('DATABASE_SSL') === 'true'
             ? { rejectUnauthorized: false }
