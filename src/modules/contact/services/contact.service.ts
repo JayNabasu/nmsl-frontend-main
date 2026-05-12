@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ContactInfo } from '../entities/contact-info.entity';
 import { UpdateContactDto } from '../dto/update-contact.dto';
 
 @Injectable()
-export class ContactService {
+export class ContactService implements OnModuleInit {
   private readonly logger = new Logger(ContactService.name);
 
   constructor(
@@ -13,77 +13,63 @@ export class ContactService {
     private readonly contactRepository: Repository<ContactInfo>,
   ) {}
 
-  async getAll(): Promise<ContactInfo[]> {
+  async onModuleInit() {
+    // Ensure required columns exist in the database
     try {
-      return await this.contactRepository.find({ order: { location: 'ASC' } });
-    } catch (e) {
-      this.logger.warn(`getAll failed (likely missing column): ${e.message}`);
-      // Fallback: raw query with only columns that definitely exist
-      try {
-        return await this.contactRepository.query(
-          `SELECT * FROM "contact_info" ORDER BY COALESCE("location", '') ASC`,
+      await this.contactRepository.query(
+        `ALTER TABLE "contact_info" ADD COLUMN IF NOT EXISTS "location" character varying`,
+      );
+      await this.contactRepository.query(
+        `ALTER TABLE "contact_info" ADD COLUMN IF NOT EXISTS "contactFormRecipient" character varying`,
+      );
+      // Set default location for existing rows
+      await this.contactRepository.query(
+        `UPDATE "contact_info" SET "location" = 'Abuja' WHERE "location" IS NULL`,
+      );
+
+      // Add unique index if not exists
+      const indexExists = await this.contactRepository.query(
+        `SELECT 1 FROM pg_indexes WHERE indexname = 'UQ_contact_info_location'`,
+      );
+      if (indexExists.length === 0) {
+        // Remove duplicates before adding unique constraint
+        await this.contactRepository.query(`
+          DELETE FROM "contact_info" a USING "contact_info" b
+          WHERE a.ctid < b.ctid AND a."location" = b."location"
+        `);
+        await this.contactRepository.query(
+          `CREATE UNIQUE INDEX "UQ_contact_info_location" ON "contact_info" ("location")`,
         );
-      } catch {
-        return [];
       }
+
+      this.logger.log('Contact info table schema verified');
+    } catch (e) {
+      this.logger.warn(`Schema check warning: ${e.message}`);
     }
+  }
+
+  async getAll(): Promise<ContactInfo[]> {
+    return this.contactRepository.find({ order: { location: 'ASC' } });
   }
 
   async getByLocation(location: string): Promise<ContactInfo> {
-    try {
-      let contact = await this.contactRepository.findOne({ where: { location } });
-      if (!contact) {
-        contact = this.contactRepository.create({ location });
-        contact = await this.contactRepository.save(contact);
-      }
-      return contact;
-    } catch (e) {
-      this.logger.warn(`getByLocation('${location}') failed: ${e.message}`);
-      // Return empty object with location set
-      return { location } as ContactInfo;
+    let contact = await this.contactRepository.findOne({ where: { location } });
+    if (!contact) {
+      contact = this.contactRepository.create({ location });
+      contact = await this.contactRepository.save(contact);
     }
+    return contact;
   }
 
   async update(dto: UpdateContactDto): Promise<ContactInfo> {
-    try {
-      let contact = await this.contactRepository.findOne({
-        where: { location: dto.location },
-      });
-      if (!contact) {
-        contact = this.contactRepository.create({ location: dto.location });
-      }
-      const { location, ...fields } = dto;
-      Object.assign(contact, fields);
-      return await this.contactRepository.save(contact);
-    } catch (e) {
-      this.logger.warn(`update via ORM failed: ${e.message}. Trying raw upsert.`);
-      // Fallback: raw upsert for when the location column exists but other columns don't
-      return this.rawUpsert(dto);
+    let contact = await this.contactRepository.findOne({
+      where: { location: dto.location },
+    });
+    if (!contact) {
+      contact = this.contactRepository.create({ location: dto.location });
     }
-  }
-
-  private async rawUpsert(dto: UpdateContactDto): Promise<ContactInfo> {
-    const fields = Object.entries(dto).filter(([, v]) => v !== undefined);
-    const columns = fields.map(([k]) => `"${k}"`);
-    const values = fields.map(([, v]) => v);
-    const placeholders = fields.map((_, i) => `$${i + 1}`);
-    const updates = fields
-      .filter(([k]) => k !== 'location')
-      .map(([k]) => `"${k}" = EXCLUDED."${k}"`);
-
-    const sql = `
-      INSERT INTO "contact_info" (${columns.join(', ')})
-      VALUES (${placeholders.join(', ')})
-      ON CONFLICT ("location") DO UPDATE SET ${updates.join(', ')}
-      RETURNING *
-    `;
-
-    try {
-      const rows = await this.contactRepository.query(sql, values);
-      return rows[0];
-    } catch (e2) {
-      this.logger.error(`Raw upsert also failed: ${e2.message}`);
-      throw e2;
-    }
+    const { location, ...fields } = dto;
+    Object.assign(contact, fields);
+    return this.contactRepository.save(contact);
   }
 }

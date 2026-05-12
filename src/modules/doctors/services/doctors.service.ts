@@ -3,6 +3,8 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -20,7 +22,9 @@ import { UsersService } from '../../users/services/users.service';
 import { ChatGateway } from '../../chat/gateways/chat.gateway';
 
 @Injectable()
-export class DoctorsService {
+export class DoctorsService implements OnModuleInit {
+  private readonly logger = new Logger(DoctorsService.name);
+
   constructor(
     @InjectRepository(Doctor)
     private readonly doctorRepository: Repository<Doctor>,
@@ -33,6 +37,26 @@ export class DoctorsService {
     private readonly emailService: EmailService,
     private readonly chatGateway: ChatGateway,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.doctorRepository.query(
+        `ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "firstName" character varying`,
+      );
+      await this.doctorRepository.query(
+        `ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "lastName" character varying`,
+      );
+      await this.doctorRepository.query(
+        `ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "designation" character varying`,
+      );
+      await this.doctorRepository.query(
+        `ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "bio" text`,
+      );
+      this.logger.log('Doctors table schema verified');
+    } catch (e) {
+      this.logger.warn(`Doctors schema check warning: ${e.message}`);
+    }
+  }
 
   async getAvailability(doctorId: string): Promise<any> {
     const availability = await this.availabilityRepository.findOne({

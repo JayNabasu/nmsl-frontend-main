@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Service } from '../entities/service.entity';
@@ -9,7 +9,7 @@ import { FileUploadService } from '../../file-upload/services/file-upload.servic
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
-export class ServicesService {
+export class ServicesService implements OnModuleInit {
   private readonly logger = new Logger(ServicesService.name);
 
   constructor(
@@ -19,6 +19,20 @@ export class ServicesService {
     private readonly locationOtherServicesRepository: Repository<LocationOtherServices>,
     private readonly fileUploadService: FileUploadService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.servicesRepository.query(
+        `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "showOnHomepage" boolean NOT NULL DEFAULT false`,
+      );
+      await this.servicesRepository.query(
+        `ALTER TABLE "services" ADD COLUMN IF NOT EXISTS "homepageOrder" integer NOT NULL DEFAULT 0`,
+      );
+      this.logger.log('Services table schema verified');
+    } catch (e) {
+      this.logger.warn(`Services schema check warning: ${e.message}`);
+    }
+  }
 
   findAll(): Promise<Service[]> {
     return this.servicesRepository.find({ order: { createdAt: 'DESC' } });
