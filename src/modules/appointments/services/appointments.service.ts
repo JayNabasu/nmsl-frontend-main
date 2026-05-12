@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import {
   Appointment,
   AppointmentStatus,
@@ -84,9 +84,27 @@ export class AppointmentsService {
 
   async create(dto: CreateAppointmentDto, patient?: User): Promise<Appointment> {
     try {
+      // Check for duplicate: same email + specialty + location with a pending/scheduled status
+      const email = dto.email || patient?.email;
+      if (email) {
+        const existing = await this.appointmentsRepository.findOne({
+          where: {
+            patientEmail: email,
+            specialty: dto.specialty,
+            location: dto.location,
+            status: In([AppointmentStatus.PENDING, AppointmentStatus.SCHEDULED]),
+          },
+        });
+        if (existing) {
+          throw new BadRequestException(
+            'You already have a pending appointment for this specialty at this location. Please wait for it to be processed or contact us to make changes.',
+          );
+        }
+      }
+
       // Handle guest bookings vs logged-in users
       const isGuest = dto.isGuest || !patient;
-      
+
       const appointment = this.appointmentsRepository.create({
         patientId: isGuest ? null : patient?.id,
         doctorId: null, // No doctor assigned yet - admin will assign later

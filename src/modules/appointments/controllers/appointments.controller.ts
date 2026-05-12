@@ -13,6 +13,7 @@ import {
   HttpException,
   Req,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AppointmentsService } from '../services/appointments.service';
 import { AppointmentLockService } from '../services/appointment-lock.service';
@@ -139,7 +140,9 @@ export class AppointmentsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Book a new appointment (guest or authenticated)' })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 2, ttl: 600 } })
+  @ApiOperation({ summary: 'Book a new appointment (guest or authenticated, max 2 per 10 minutes)' })
   create(@Body() dto: CreateAppointmentDto, @Req() req: Request) {
     // Extract user from request if authenticated (optional)
     const user = req['user'] as User | undefined;

@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Body, UseGuards, Query, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, UseGuards, Query, Logger, Req } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -35,7 +36,9 @@ export class ContactController {
   }
 
   @Post('contact/send')
-  @ApiOperation({ summary: 'Submit contact form message (public)' })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 300 } })
+  @ApiOperation({ summary: 'Submit contact form message (public, max 3 per 5 minutes)' })
   async submitContactForm(@Body() dto: ContactFormDto) {
     try {
       const location = dto.location || 'Abuja';
