@@ -9,6 +9,7 @@ export class UpdateStatisticDto {
   value: string;
   label: string;
   description?: string;
+  sublabel?: string;
 }
 
 @Injectable()
@@ -24,7 +25,12 @@ export class StatisticsService {
 
   async replaceAll(stats: UpdateStatisticDto[]): Promise<Statistic[]> {
     await this.statisticsRepository.clear();
-    const entities = this.statisticsRepository.create(stats);
+    // Map sublabel → description for portal compatibility
+    const mapped = stats.map(({ sublabel, ...rest }) => ({
+      ...rest,
+      description: rest.description || sublabel || '',
+    }));
+    const entities = this.statisticsRepository.create(mapped);
     return this.statisticsRepository.save(entities);
   }
 }

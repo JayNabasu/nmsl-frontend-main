@@ -32,6 +32,34 @@ export class ServicesService implements OnModuleInit {
     } catch (e) {
       this.logger.warn(`Services schema check warning: ${e.message}`);
     }
+
+    // Ensure location_other_services table exists
+    try {
+      await this.servicesRepository.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'location_other_services_location_enum') THEN
+            CREATE TYPE "location_other_services_location_enum" AS ENUM ('Abuja', 'Lagos', 'Benin', 'Kaduna', 'Port Harcourt', 'Warri');
+          END IF;
+        END $$;
+      `);
+      await this.servicesRepository.query(`
+        CREATE TABLE IF NOT EXISTS "location_other_services" (
+          "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "location" "location_other_services_location_enum" NOT NULL,
+          "services" jsonb NOT NULL DEFAULT '[]',
+          "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_location_other_services" PRIMARY KEY ("id")
+        )
+      `);
+      await this.servicesRepository.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "IDX_location_other_services_location"
+        ON "location_other_services" ("location")
+      `);
+      this.logger.log('location_other_services table verified');
+    } catch (e) {
+      this.logger.warn(`location_other_services check warning: ${e.message}`);
+    }
   }
 
   findAll(): Promise<Service[]> {
