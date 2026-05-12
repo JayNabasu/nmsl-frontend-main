@@ -33,63 +33,25 @@ export class ServicesService implements OnModuleInit {
       this.logger.warn(`Services schema check warning: ${e.message}`);
     }
 
-    // Ensure location_other_services table exists with varchar column
+    // Ensure location_other_services table exists (only creates if missing)
     try {
-      // Drop and recreate if it has an enum column (causes TypeORM errors)
-      const colInfo = await this.servicesRepository.query(`
-        SELECT data_type, udt_name FROM information_schema.columns
-        WHERE table_name = 'location_other_services' AND column_name = 'location'
+      await this.servicesRepository.query(`
+        CREATE TABLE IF NOT EXISTS "location_other_services" (
+          "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "location" character varying NOT NULL,
+          "services" jsonb NOT NULL DEFAULT '[]',
+          "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_location_other_services" PRIMARY KEY ("id")
+        )
       `);
-      if (colInfo.length > 0 && colInfo[0].data_type === 'USER-DEFINED') {
-        this.logger.log('location_other_services has enum column, recreating as varchar...');
-        // Back up data
-        const rows = await this.servicesRepository.query(
-          `SELECT "location"::text as location, "services" FROM "location_other_services"`,
-        );
-        await this.servicesRepository.query(`DROP TABLE "location_other_services"`);
-        await this.servicesRepository.query(`
-          CREATE TABLE "location_other_services" (
-            "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-            "location" character varying NOT NULL,
-            "services" jsonb NOT NULL DEFAULT '[]',
-            "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
-            "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-            CONSTRAINT "PK_location_other_services" PRIMARY KEY ("id")
-          )
-        `);
-        await this.servicesRepository.query(
-          `CREATE UNIQUE INDEX "IDX_location_other_services_location" ON "location_other_services" ("location")`,
-        );
-        // Restore data
-        for (const row of rows) {
-          await this.servicesRepository.query(
-            `INSERT INTO "location_other_services" ("location", "services") VALUES ($1, $2)`,
-            [row.location, JSON.stringify(row.services)],
-          );
-        }
-        this.logger.log('location_other_services recreated with varchar column');
-      } else if (colInfo.length === 0) {
-        // Table doesn't exist, create it
-        await this.servicesRepository.query(`
-          CREATE TABLE IF NOT EXISTS "location_other_services" (
-            "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-            "location" character varying NOT NULL,
-            "services" jsonb NOT NULL DEFAULT '[]',
-            "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
-            "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-            CONSTRAINT "PK_location_other_services" PRIMARY KEY ("id")
-          )
-        `);
-        await this.servicesRepository.query(`
-          CREATE UNIQUE INDEX IF NOT EXISTS "IDX_location_other_services_location"
-          ON "location_other_services" ("location")
-        `);
-        this.logger.log('location_other_services table created');
-      } else {
-        this.logger.log('location_other_services table verified (varchar)');
-      }
+      await this.servicesRepository.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "IDX_location_other_services_location"
+        ON "location_other_services" ("location")
+      `);
+      this.logger.log('location_other_services table verified');
     } catch (e) {
-      this.logger.warn(`location_other_services check warning: ${e.message}`);
+      this.logger.warn(`location_other_services check: ${e.message}`);
     }
   }
 
@@ -258,20 +220,25 @@ export class ServicesService implements OnModuleInit {
     return { success: true };
   }
 
-  async getOtherServicesByLocation(location?: string): Promise<LocationOtherServices[]> {
-    if (location) {
-      const single = await this.locationOtherServicesRepository.findOne({
-        where: { location: location as any },
-      });
-      return single ? [single] : [];
+  async getOtherServicesByLocation(location?: string): Promise<any[]> {
+    try {
+      if (location) {
+        const rows = await this.servicesRepository.query(
+          `SELECT * FROM "location_other_services" WHERE "location"::text = $1`,
+          [location],
+        );
+        return rows;
+      }
+      return await this.servicesRepository.query(
+        `SELECT * FROM "location_other_services" ORDER BY "location"::text ASC`,
+      );
+    } catch (e) {
+      this.logger.warn(`getOtherServicesByLocation failed: ${e.message}`);
+      return [];
     }
-
-    return this.locationOtherServicesRepository.find({
-      order: { location: 'ASC' },
-    });
   }
 
-  async upsertOtherServicesByLocation(location: string, services: string[]): Promise<LocationOtherServices> {
+  async upsertOtherServicesByLocation(location: string, services: string[]): Promise<any> {
     const normalized = Array.from(
       new Set(
         services
@@ -280,19 +247,33 @@ export class ServicesService implements OnModuleInit {
       ),
     );
 
-    const existing = await this.locationOtherServicesRepository.findOne({
-      where: { location: location as any },
-    });
+    try {
+      // Try upsert via raw SQL to avoid TypeORM enum issues
+      const existing = await this.servicesRepository.query(
+        `SELECT "id" FROM "location_other_services" WHERE "location"::text = $1`,
+        [location],
+      );
 
-    if (existing) {
-      existing.services = normalized;
-      return this.locationOtherServicesRepository.save(existing);
+      if (existing.length > 0) {
+        await this.servicesRepository.query(
+          `UPDATE "location_other_services" SET "services" = $1, "updatedAt" = now() WHERE "location"::text = $2`,
+          [JSON.stringify(normalized), location],
+        );
+        const updated = await this.servicesRepository.query(
+          `SELECT * FROM "location_other_services" WHERE "location"::text = $1`,
+          [location],
+        );
+        return updated[0];
+      }
+
+      const inserted = await this.servicesRepository.query(
+        `INSERT INTO "location_other_services" ("location", "services") VALUES ($1, $2) RETURNING *`,
+        [location, JSON.stringify(normalized)],
+      );
+      return inserted[0];
+    } catch (e) {
+      this.logger.error(`upsertOtherServicesByLocation failed: ${e.message}`, e.stack);
+      throw e;
     }
-
-    const created = this.locationOtherServicesRepository.create({
-      location: location as any,
-      services: normalized,
-    });
-    return this.locationOtherServicesRepository.save(created);
   }
 }
