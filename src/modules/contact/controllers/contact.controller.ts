@@ -1,5 +1,8 @@
-import { Controller, Get, Post, Patch, Body, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, UseGuards, Query, Logger } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ContactInfo } from '../entities/contact-info.entity';
 import { ContactService } from '../services/contact.service';
 import { UpdateContactDto } from '../dto/update-contact.dto';
 import { ContactFormDto } from '../dto/contact-form.dto';
@@ -12,9 +15,13 @@ import { EmailService } from '../../notifications/services/email.service';
 @ApiTags('Contact')
 @Controller()
 export class ContactController {
+  private readonly logger = new Logger(ContactController.name);
+
   constructor(
     private readonly contactService: ContactService,
     private readonly emailService: EmailService,
+    @InjectRepository(ContactInfo)
+    private readonly contactRepository: Repository<ContactInfo>,
   ) {}
 
   @Get('contact')
@@ -32,21 +39,29 @@ export class ContactController {
   async submitContactForm(@Body() dto: ContactFormDto) {
     try {
       const location = dto.location || 'Abuja';
-
-      // Look up the global contact form recipient
       let recipientEmail: string | undefined;
+
+      // Try raw query to avoid column-not-found errors if migration hasn't run
       try {
-        const globalSettings = await this.contactService.getByLocation('__global__');
-        recipientEmail = globalSettings?.contactFormRecipient;
-      } catch {
-        // ignore if not configured
+        const rows = await this.contactRepository.query(
+          `SELECT "contactFormRecipient" FROM "contact_info" WHERE "location" = $1 LIMIT 1`,
+          ['__global__'],
+        );
+        recipientEmail = rows?.[0]?.contactFormRecipient || undefined;
+        this.logger.log(`Global recipient lookup: ${recipientEmail || 'not set'}`);
+      } catch (e) {
+        this.logger.warn(`contactFormRecipient column query failed: ${e.message}`);
+        // Column may not exist - try emailPrimary instead
       }
 
       // Fallback to location's primary email
       if (!recipientEmail) {
         try {
-          const contactInfo = await this.contactService.getByLocation(location);
-          recipientEmail = contactInfo?.emailPrimary;
+          const rows = await this.contactRepository.query(
+            `SELECT "emailPrimary" FROM "contact_info" WHERE "location" = $1 LIMIT 1`,
+            [location],
+          );
+          recipientEmail = rows?.[0]?.emailPrimary || undefined;
         } catch {
           // ignore
         }
