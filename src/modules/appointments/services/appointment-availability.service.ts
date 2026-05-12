@@ -60,7 +60,19 @@ export class AppointmentAvailabilityService {
     );
 
     // Generate all possible time slots
-    const allSlots = this.generateTimeSlots();
+    let allSlots = this.generateTimeSlots();
+
+    // If the date is today, filter out past time slots
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    if (date === todayStr) {
+      const currentHour = today.getHours();
+      const currentMinute = today.getMinutes();
+      allSlots = allSlots.filter((slot) => {
+        const [h, m] = slot.split(':').map(Number);
+        return h > currentHour || (h === currentHour && m > currentMinute);
+      });
+    }
 
     // Calculate availability for each slot
     const availableSlots = allSlots.filter((slot) => {
