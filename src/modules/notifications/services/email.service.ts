@@ -243,4 +243,33 @@ export class EmailService {
       `,
     });
   }
+
+  async sendContactFormEmail(data: {
+    recipientEmail: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    message: string;
+    location?: string;
+  }) {
+    await this.send({
+      to: data.recipientEmail,
+      subject: `New Contact Form Message from ${data.firstName} ${data.lastName}`,
+      html: `
+        <h1>New Contact Form Submission</h1>
+        ${data.location ? `<p><strong>Location:</strong> ${data.location}</p>` : ''}
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p><strong>Name:</strong> ${data.firstName} ${data.lastName}</p>
+          <p><strong>Email:</strong> ${data.email}</p>
+          ${data.phone ? `<p><strong>Phone:</strong> ${data.phone}</p>` : ''}
+        </div>
+        <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; margin: 20px 0;">
+          <h2 style="margin-top: 0;">Message</h2>
+          <p style="white-space: pre-line;">${data.message}</p>
+        </div>
+        <p style="color: #666; font-size: 12px;">This message was sent from the NMSL website contact form.</p>
+      `,
+    });
+  }
 }

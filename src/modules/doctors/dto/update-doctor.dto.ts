@@ -15,6 +15,21 @@ export class UpdateDoctorDto {
   @IsOptional()
   name?: string;
 
+  @ApiPropertyOptional({ example: 'Michael' })
+  @IsString()
+  @IsOptional()
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Chen' })
+  @IsString()
+  @IsOptional()
+  lastName?: string;
+
+  @ApiPropertyOptional({ example: 'Dr.' })
+  @IsString()
+  @IsOptional()
+  designation?: string;
+
   @ApiPropertyOptional({ example: 'michael.chen@nmsl.app' })
   @IsEmail()
   @IsOptional()

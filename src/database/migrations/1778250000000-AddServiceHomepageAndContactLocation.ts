@@ -31,6 +31,11 @@ export class AddServiceHomepageAndContactLocation1778250000000 implements Migrat
     await queryRunner.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_contact_info_location" ON "contact_info" ("location")`,
     );
+
+    // Add contactFormRecipient column
+    await queryRunner.query(
+      `ALTER TABLE "contact_info" ADD COLUMN IF NOT EXISTS "contactFormRecipient" character varying`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

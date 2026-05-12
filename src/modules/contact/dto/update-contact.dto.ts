@@ -50,4 +50,9 @@ export class UpdateContactDto {
   @IsOptional()
   @IsString()
   emergencyHours?: string;
+
+  @ApiPropertyOptional({ description: 'Email address that receives contact form submissions' })
+  @IsOptional()
+  @IsString()
+  contactFormRecipient?: string;
 }

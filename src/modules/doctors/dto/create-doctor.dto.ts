@@ -21,10 +21,25 @@ export enum DoctorSpecialty {
 }
 
 export class CreateDoctorDto {
-  @ApiProperty({ example: 'Dr. Michael Chen' })
+  @ApiPropertyOptional({ example: 'Dr. Michael Chen', description: 'Full name (legacy). Prefer firstName + lastName.' })
   @IsString()
-  @MinLength(2)
-  name: string;
+  @IsOptional()
+  name?: string;
+
+  @ApiProperty({ example: 'Michael' })
+  @IsString()
+  @MinLength(1)
+  firstName: string;
+
+  @ApiProperty({ example: 'Chen' })
+  @IsString()
+  @MinLength(1)
+  lastName: string;
+
+  @ApiPropertyOptional({ example: 'Dr.', description: 'Designation e.g. Dr., Nurse' })
+  @IsString()
+  @IsOptional()
+  designation?: string;
 
   @ApiProperty({ example: 'michael.chen@nmsl.app' })
   @IsEmail()

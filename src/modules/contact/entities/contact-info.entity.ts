@@ -40,6 +40,9 @@ export class ContactInfo {
   @Column({ nullable: true })
   emergencyHours: string;
 
+  @Column({ nullable: true })
+  contactFormRecipient: string;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

@@ -11,10 +11,25 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MedicalSpecialty } from '../../users/entities/user.entity';
 
 export class CreateDoctorDto {
-  @ApiProperty({ example: 'Dr. Michael Chen' })
+  @ApiPropertyOptional({ example: 'Dr. Michael Chen' })
   @IsString()
-  @MinLength(2)
-  name: string;
+  @IsOptional()
+  name?: string;
+
+  @ApiProperty({ example: 'Michael' })
+  @IsString()
+  @MinLength(1)
+  firstName: string;
+
+  @ApiProperty({ example: 'Chen' })
+  @IsString()
+  @MinLength(1)
+  lastName: string;
+
+  @ApiPropertyOptional({ example: 'Dr.' })
+  @IsString()
+  @IsOptional()
+  designation?: string;
 
   @ApiProperty({ example: 'michael.chen@nmsl.com' })
   @IsEmail()

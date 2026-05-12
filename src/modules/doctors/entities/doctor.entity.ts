@@ -21,6 +21,15 @@ export class Doctor {
   @Column()
   name: string;
 
+  @Column({ nullable: true })
+  firstName: string;
+
+  @Column({ nullable: true })
+  lastName: string;
+
+  @Column({ nullable: true })
+  designation: string;
+
   @Column({ unique: true })
   email: string;
 

@@ -244,6 +244,9 @@ export class DoctorsService {
       .select([
         'doctor.id',
         'doctor.name',
+        'doctor.firstName',
+        'doctor.lastName',
+        'doctor.designation',
         'doctor.email',
         'doctor.specialty',
         'doctor.location',

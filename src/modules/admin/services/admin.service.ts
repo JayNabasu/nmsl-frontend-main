@@ -110,9 +110,13 @@ export class AdminService {
     const generatedPassword = randomBytes(24).toString('hex');
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
     
+    // Auto-compute name from firstName + lastName
+    const computedName = dto.name || [dto.designation, dto.firstName, dto.lastName].filter(Boolean).join(' ');
+
     // Create doctor record
     const doctor = this.doctorsRepository.create({
       ...dto,
+      name: computedName,
       password: hashedPassword,
       isActive: true,
     });
@@ -275,6 +279,15 @@ export class AdminService {
 
     // Update doctor fields
     Object.assign(doctor, dto);
+
+    // Recompute name if firstName or lastName changed
+    if (dto.firstName || dto.lastName || dto.designation) {
+      const designation = dto.designation ?? doctor.designation ?? '';
+      const first = dto.firstName ?? doctor.firstName ?? '';
+      const last = dto.lastName ?? doctor.lastName ?? '';
+      doctor.name = [designation, first, last].filter(Boolean).join(' ');
+    }
+
     const updatedDoctor = await this.doctorsRepository.save(doctor);
 
     const { password, ...safe } = updatedDoctor as any;
