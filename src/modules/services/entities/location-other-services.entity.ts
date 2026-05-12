@@ -6,19 +6,14 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import { NigeriaLocation } from './service.entity';
-
 @Entity('location_other_services')
 @Index(['location'], { unique: true })
 export class LocationOtherServices {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({
-    type: 'enum',
-    enum: NigeriaLocation,
-  })
-  location: NigeriaLocation;
+  @Column()
+  location: string;
 
   @Column({ type: 'jsonb', default: [] })
   services: string[];

@@ -1,14 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsEnum, IsString } from 'class-validator';
-import { NigeriaLocation } from '../entities/service.entity';
+import { IsArray, IsString } from 'class-validator';
 
 export class UpdateLocationOtherServicesDto {
   @ApiProperty({
-    enum: NigeriaLocation,
+    example: 'Abuja',
     description: 'Location to attach the other-services list to',
   })
-  @IsEnum(NigeriaLocation)
-  location: NigeriaLocation;
+  @IsString()
+  location: string;
 
   @ApiProperty({
     type: [String],

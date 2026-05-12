@@ -45,8 +45,8 @@ export class StatisticsService implements OnModuleInit {
 
   async replaceAll(stats: UpdateStatisticDto[]): Promise<Statistic[]> {
     await this.statisticsRepository.clear();
-    // Map sublabel → description for portal compatibility
-    const mapped = stats.map(({ sublabel, ...rest }) => ({
+    // Map sublabel → description and strip IDs so DB auto-generates valid UUIDs
+    const mapped = stats.map(({ sublabel, id, ...rest }) => ({
       ...rest,
       description: rest.description || sublabel || '',
     }));
