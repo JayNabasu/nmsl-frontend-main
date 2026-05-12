@@ -33,20 +33,20 @@ export class ContactController {
     try {
       const location = dto.location || 'Abuja';
 
-      // Try to find recipient email from contact info
+      // Look up the global contact form recipient
       let recipientEmail: string | undefined;
       try {
-        const contactInfo = await this.contactService.getByLocation(location);
-        recipientEmail = contactInfo?.contactFormRecipient || contactInfo?.emailPrimary;
+        const globalSettings = await this.contactService.getByLocation('__global__');
+        recipientEmail = globalSettings?.contactFormRecipient;
       } catch {
-        // Column may not exist yet - ignore
+        // ignore if not configured
       }
 
+      // Fallback to location's primary email
       if (!recipientEmail) {
-        // Fallback: try Abuja contact info
         try {
-          const fallback = await this.contactService.getByLocation('Abuja');
-          recipientEmail = fallback?.contactFormRecipient || fallback?.emailPrimary;
+          const contactInfo = await this.contactService.getByLocation(location);
+          recipientEmail = contactInfo?.emailPrimary;
         } catch {
           // ignore
         }
