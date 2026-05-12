@@ -15,7 +15,7 @@ export class EmailService {
     const azureConnectionString = this.configService.get<string>('AZURE_COMMUNICATION_CONNECTION_STRING');
     this.from = this.configService.get<string>('EMAIL_FROM') || 'noreply@nmsl.app';
     const rawFrontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://witty-beach-029599903.7.azurestaticapps.net';
-    this.frontendUrl = rawFrontendUrl.split(',').pop()!.trim();
+    this.frontendUrl = rawFrontendUrl.split(',')[0].trim();
     
     // Use Azure Communication Services Email
     this.enabled = !!azureConnectionString && !azureConnectionString.startsWith('your_');
