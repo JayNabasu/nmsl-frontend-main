@@ -30,26 +30,46 @@ export class ContactController {
   @Post('contact/send')
   @ApiOperation({ summary: 'Submit contact form message (public)' })
   async submitContactForm(@Body() dto: ContactFormDto) {
-    // Find recipient email for the location (or fallback to first available)
-    const location = dto.location || 'Abuja';
-    const contactInfo = await this.contactService.getByLocation(location);
-    const recipientEmail = contactInfo.contactFormRecipient || contactInfo.emailPrimary;
+    try {
+      const location = dto.location || 'Abuja';
 
-    if (!recipientEmail) {
-      return { success: false, message: 'No recipient email configured for this location.' };
+      // Try to find recipient email from contact info
+      let recipientEmail: string | undefined;
+      try {
+        const contactInfo = await this.contactService.getByLocation(location);
+        recipientEmail = contactInfo?.contactFormRecipient || contactInfo?.emailPrimary;
+      } catch {
+        // Column may not exist yet - ignore
+      }
+
+      if (!recipientEmail) {
+        // Fallback: try Abuja contact info
+        try {
+          const fallback = await this.contactService.getByLocation('Abuja');
+          recipientEmail = fallback?.contactFormRecipient || fallback?.emailPrimary;
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!recipientEmail) {
+        return { success: false, message: 'No recipient email configured. Please try again later.' };
+      }
+
+      await this.emailService.sendContactFormEmail({
+        recipientEmail,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        email: dto.email,
+        phone: dto.phone,
+        message: dto.message,
+        location,
+      });
+
+      return { success: true, message: 'Your message has been sent successfully.' };
+    } catch (error) {
+      return { success: false, message: 'Failed to send message. Please try again later.' };
     }
-
-    await this.emailService.sendContactFormEmail({
-      recipientEmail,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      email: dto.email,
-      phone: dto.phone,
-      message: dto.message,
-      location,
-    });
-
-    return { success: true, message: 'Your message has been sent successfully.' };
   }
 
   @Patch('admin/contact')
