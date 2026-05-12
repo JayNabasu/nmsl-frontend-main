@@ -278,6 +278,7 @@ export class DoctorsService implements OnModuleInit {
         'doctor.qualifications',
         'doctor.avatar',
         'doctor.bio',
+        'doctor.yearsOfExperience',
       ]);
 
     if (filters?.location) {

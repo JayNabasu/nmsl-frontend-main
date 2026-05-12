@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsString,
+  IsNumber,
   MinLength,
   IsEnum,
   IsOptional,
@@ -72,4 +73,9 @@ export class UpdateDoctorDto {
   @IsString()
   @IsOptional()
   avatar?: string;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsNumber()
+  @IsOptional()
+  yearsOfExperience?: number;
 }

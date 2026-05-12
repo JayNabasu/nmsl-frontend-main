@@ -73,6 +73,9 @@ export class Doctor {
   @Column({ type: 'text', nullable: true })
   bio: string;
 
+  @Column({ type: 'int', nullable: true })
+  yearsOfExperience: number;
+
   @Column({ nullable: true })
   avatar: string;
 
