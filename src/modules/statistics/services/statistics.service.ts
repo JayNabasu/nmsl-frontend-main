@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Statistic } from '../entities/statistic.entity';
@@ -13,11 +13,31 @@ export class UpdateStatisticDto {
 }
 
 @Injectable()
-export class StatisticsService {
+export class StatisticsService implements OnModuleInit {
+  private readonly logger = new Logger(StatisticsService.name);
+
   constructor(
     @InjectRepository(Statistic)
     private readonly statisticsRepository: Repository<Statistic>,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.statisticsRepository.query(`
+        CREATE TABLE IF NOT EXISTS "statistics" (
+          "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "icon" character varying NOT NULL,
+          "value" character varying NOT NULL,
+          "label" character varying NOT NULL,
+          "description" character varying,
+          CONSTRAINT "PK_statistics" PRIMARY KEY ("id")
+        )
+      `);
+      this.logger.log('Statistics table verified');
+    } catch (e) {
+      this.logger.warn(`Statistics schema check: ${e.message}`);
+    }
+  }
 
   findAll(): Promise<Statistic[]> {
     return this.statisticsRepository.find();
