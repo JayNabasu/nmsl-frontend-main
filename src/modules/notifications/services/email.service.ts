@@ -7,6 +7,7 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly from: string;
   private readonly frontendUrl: string;
+  private readonly passwordResetBaseUrl: string;
   private readonly enabled: boolean;
   private readonly emailClient: EmailClient;
   private readonly provider: 'azure' | 'mock';
@@ -16,6 +17,12 @@ export class EmailService {
     this.from = this.configService.get<string>('EMAIL_FROM') || 'noreply@nmsl.app';
     const rawFrontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://witty-beach-029599903.7.azurestaticapps.net';
     this.frontendUrl = rawFrontendUrl.split(',')[0].trim();
+    const configuredPasswordResetUrl = this.configService.get<string>('PASSWORD_RESET_URL');
+    const configuredPortalUrl = this.configService.get<string>('PORTAL_URL');
+    this.passwordResetBaseUrl =
+      configuredPasswordResetUrl?.trim() ||
+      configuredPortalUrl?.trim() ||
+      this.frontendUrl;
     
     // Use Azure Communication Services Email
     this.enabled = !!azureConnectionString && !azureConnectionString.startsWith('your_');
@@ -110,7 +117,7 @@ export class EmailService {
   }
 
   async sendPasswordReset(email: string, token: string) {
-    const resetLink = `${this.frontendUrl}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+    const resetLink = `${this.passwordResetBaseUrl}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
     await this.send({
       to: email,
 
