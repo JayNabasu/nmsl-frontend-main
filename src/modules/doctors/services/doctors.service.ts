@@ -52,6 +52,9 @@ export class DoctorsService implements OnModuleInit {
       await this.doctorRepository.query(
         `ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "bio" text`,
       );
+      await this.doctorRepository.query(
+        `ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "yearsOfExperience" integer`,
+      );
       this.logger.log('Doctors table schema verified');
     } catch (e) {
       this.logger.warn(`Doctors schema check warning: ${e.message}`);
