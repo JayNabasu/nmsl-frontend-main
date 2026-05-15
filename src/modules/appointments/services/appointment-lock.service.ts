@@ -16,7 +16,7 @@ export interface LockInfo {
 
 @Injectable()
 export class AppointmentLockService {
-  private readonly LOCK_TTL = 1800; // 30 minutes in seconds
+  private readonly LOCK_TTL = 600; // 10 minutes in seconds
   private readonly LOCK_PREFIX = 'appointment:lock:';
 
   constructor(

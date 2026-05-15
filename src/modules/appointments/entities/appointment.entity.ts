@@ -113,6 +113,9 @@ export class Appointment {
   @Column({ nullable: true })
   lockedBy: string; // Email of the officer who locked it
 
+  @Column({ nullable: true })
+  lockedByName: string; // Display name of the officer who locked it
+
   @Column({ type: 'timestamp', nullable: true })
   lockedAt: Date;
 

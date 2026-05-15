@@ -441,10 +441,36 @@ export class AdminService {
     const where = this.isLocationScoped(user) && user!.location
       ? { location: user!.location }
       : {};
-    return this.appointmentsRepository.find({
+    const appointments = await this.appointmentsRepository.find({
       where,
       order: { appointmentDate: 'DESC' },
     });
+
+    // Auto-clear stale locks (>30 minutes old) from the database
+    const tenMinutesMs = 10 * 60 * 1000;
+    const now = Date.now();
+    const staleCleanups: Promise<any>[] = [];
+
+    for (const appt of appointments) {
+      if (appt.lockedBy && appt.lockedAt) {
+        const lockAge = now - new Date(appt.lockedAt).getTime();
+        if (lockAge > tenMinutesMs) {
+          appt.lockedBy = null;
+          appt.lockedByName = null;
+          appt.lockedAt = null;
+          staleCleanups.push(
+            this.appointmentsRepository.update(appt.id, { lockedBy: null, lockedByName: null, lockedAt: null }),
+          );
+        }
+      }
+    }
+
+    if (staleCleanups.length > 0) {
+      await Promise.all(staleCleanups);
+      this.logger.log(`Cleared ${staleCleanups.length} stale appointment lock(s)`);
+    }
+
+    return appointments;
   }
 
   /**

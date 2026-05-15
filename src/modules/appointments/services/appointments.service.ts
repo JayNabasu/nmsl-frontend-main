@@ -293,9 +293,11 @@ export class AppointmentsService {
     appointmentId: string,
     lockedBy: string | null,
     lockedAt: Date | null,
+    lockedByName?: string | null,
   ): Promise<Appointment> {
     const appointment = await this.findById(appointmentId);
     appointment.lockedBy = lockedBy;
+    appointment.lockedByName = lockedByName ?? null;
     appointment.lockedAt = lockedAt;
     return this.appointmentsRepository.save(appointment);
   }

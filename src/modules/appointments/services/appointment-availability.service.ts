@@ -62,12 +62,14 @@ export class AppointmentAvailabilityService {
     // Generate all possible time slots
     let allSlots = this.generateTimeSlots();
 
-    // If the date is today, filter out past time slots
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    // If the date is today, filter out past time slots (using WAT = UTC+1)
+    const now = new Date();
+    const watOffset = 60; // WAT is UTC+1 (60 minutes)
+    const watTime = new Date(now.getTime() + watOffset * 60 * 1000);
+    const todayStr = watTime.toISOString().split('T')[0];
     if (date === todayStr) {
-      const currentHour = today.getHours();
-      const currentMinute = today.getMinutes();
+      const currentHour = watTime.getUTCHours();
+      const currentMinute = watTime.getUTCMinutes();
       allSlots = allSlots.filter((slot) => {
         const [h, m] = slot.split(':').map(Number);
         return h > currentHour || (h === currentHour && m > currentMinute);

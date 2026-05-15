@@ -295,11 +295,12 @@ export class AdminController {
       user.name,
     );
 
-    // Update appointment entity with lock info
+    // Update appointment entity with lock info (including officer name)
     await this.appointmentsService.updateLockFields(
       id,
       lockInfo.lockedBy,
       lockInfo.lockedAt,
+      user.name,
     );
 
     const appointment = await this.appointmentsService.findById(id);
