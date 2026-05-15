@@ -17,6 +17,7 @@ import { BoardMembersModule } from './modules/board-members/board-members.module
 import { ContactModule } from './modules/contact/contact.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
+import { SiteSettingsModule } from './modules/site-settings/site-settings.module';
 
 import { User } from './modules/users/entities/user.entity';
 import { Doctor } from './modules/doctors/entities/doctor.entity';
@@ -28,6 +29,7 @@ import { Partner } from './modules/partners/entities/partner.entity';
 import { BoardMember } from './modules/board-members/entities/board-member.entity';
 import { ContactInfo } from './modules/contact/entities/contact-info.entity';
 import { AuditLog } from './modules/audit/entities/audit-log.entity';
+import { SiteSettings } from './modules/site-settings/entities/site-settings.entity';
 import { Testimonial } from './modules/testimonials/entities/testimonial.entity';
 import { redisConfig } from './config/redis.config';
 
@@ -74,6 +76,7 @@ export class AppController {
             ContactInfo,
             AuditLog,
             Testimonial,
+            SiteSettings,
           ],
           synchronize: config.get<string>('DATABASE_SYNC') === 'true',
           migrationsRun: true,
@@ -141,6 +144,7 @@ export class AppController {
     BoardMembersModule,
     ContactModule,
     TestimonialsModule,
+    SiteSettingsModule,
   ],
   controllers: [AppController],
 })
